@@ -1,0 +1,135 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(ClusterR)
+library(cluster)
+```
+
+
+```{r}
+churn_df <- read.csv("/Users/wyattromero/Downloads/kmeans_clustering/churn_clean.csv")
+head(churn_df)
+```
+
+```{r}
+summary(churn_df)
+```
+
+```{r}
+str(churn_df)
+```
+
+```{r}
+ #Rename survey variables for clarity
+churn_df <- rename(churn_df, 'TimelyResponse' = 'Item1',
+       'Fixes' = 'Item2',
+       'Replacements' = 'Item3',
+       'Reliability' = 'Item4',
+       'Options' = 'Item5',
+       'Respectfulness' = 'Item6',
+       'Courteous' = 'Item7',
+       'Listening' = 'Item8')
+```
+
+```{r}
+churn_df$Gender <- ifelse(churn_df$Gender == "Female", 1, 0)
+churn_df$Churn <- ifelse(churn_df$Churn == "Yes", 1, 0)
+churn_df$Techie <- ifelse(churn_df$Techie == "Yes", 1, 0)
+churn_df$Contract <- ifelse(churn_df$Contract == "Two Year", 1, 0)
+churn_df$Port_modem <- ifelse(churn_df$Port_modem == "Yes", 1, 0)
+churn_df$Tablet <- ifelse(churn_df$Tablet == "Yes", 1, 0)
+churn_df$InternetService <- ifelse(churn_df$InternetService == "Fiber Optic", 1, 0)
+churn_df$Phone <- ifelse(churn_df$Phone == "Yes", 1, 0)
+churn_df$Multiple <- ifelse(churn_df$Multiple == "Yes", 1, 0)
+churn_df$OnlineSecurity <- ifelse(churn_df$OnlineSecurity == "Yes", 1, 0)
+churn_df$OnlineBackup <- ifelse(churn_df$OnlineBackup == "Yes", 1, 0)
+churn_df$DeviceProtection <- ifelse(churn_df$DeviceProtection == "Yes", 1, 0)
+churn_df$TechSupport <- ifelse(churn_df$TechSupport == "Yes", 1, 0)
+churn_df$StreamingTV <- ifelse(churn_df$StreamingTV == "Yes", 1, 0)
+churn_df$StreamingMovies <- ifelse(churn_df$StreamingMovies == "Yes", 1, 0)
+churn_df$PaperlessBilling <- ifelse(churn_df$PaperlessBilling == "Yes", 1, 0)
+head(churn_df)
+ 
+```
+
+```{r}
+# Remove unique identifiers that are not the customer_id column
+churn_df <- select(churn_df, -c('CaseOrder', 'Interaction', 'UID', 'City', 'State', 'County', 'Zip', "Lat", 'Lng', 'Population', 'Area', 'TimeZone', 'Job', 'Marital', 'PaymentMethod', 'Customer_id'))
+head(churn_df)
+```
+
+```{r}
+churn_df <- select(churn_df, c('Churn', 'Tenure', 'Bandwidth_GB_Year'))
+```
+
+```{r}
+churn_df[churn_df == "?"] <- NA
+colSums(is.na(churn_df))
+
+churn_df <- na.omit(churn_df)
+```
+
+```{r}
+write.csv(churn_df, "churn_prepared_D212.csv", row.names = TRUE)
+```
+
+```{r}
+#Create training set
+churn_1 <- churn_df[, -1]
+head(churn_1)
+```
+
+```{r}
+set.seed(1)
+wss <- NULL
+for (i in 1:10) {
+  fit = kmeans(churn_1, centers = i)
+  wss = c(wss, fit$tot.withinss)
+}
+plot(1:10, wss, type = "o")
+```
+
+```{r}
+set.seed(15)
+kmeans.re <- kmeans(churn_1, centers = 2, nstart = 500)
+kmeans.re
+```
+
+```{r}
+cm <- table(churn_df$Churn, kmeans.re$cluster)
+cm
+```
+
+```{r}
+error <- mean(kmeans.re$cluster != churn_df$Churn)
+print(paste('Accuracy =', 1-error))
+```
+
+```{r}
+plot(churn_1[c("Tenure", "Bandwidth_GB_Year")])
+plot(churn_1[c("Tenure", "Bandwidth_GB_Year")],
+     col = kmeans.re$cluster,
+     main = "K-means with 2 clusters")
+
+kmeans.re$centers
+kmeans.re$centers[, c("Tenure", "Bandwidth_GB_Year")]
+
+points(kmeans.re$centers[, c("Tenure", "Bandwidth_GB_Year")])
+
+y_kmeans <- kmeans.re$cluster
+clusplot(churn_1[, c("Tenure", "Bandwidth_GB_Year")],
+         y_kmeans,
+         lines = 0,
+         shade = TRUE,
+         color = TRUE,
+         labels = 2,
+         plotchar = FALSE,
+         span = TRUE,
+         main = paste("Cluster Churn"),
+         xlab = 'Tenure',
+         ylab = 'Bandwidth_GB_Year')
+```
